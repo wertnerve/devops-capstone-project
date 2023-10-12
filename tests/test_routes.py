@@ -32,17 +32,18 @@ class TestAccountService(TestCase):
         app.config["TESTING"] = True
         app.config["DEBUG"] = False
         app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URI
-        app.logger.setLevel(logging.CRITICAL)
+      #  app.logger.setLevel(logging.CRITICAL)
         init_db(app)
 
     @classmethod
     def tearDownClass(cls):
         """Runs once before test suite"""
 
+   # @classmethod
     def setUp(self):
         """Runs before each test"""
-        db.session.query(Account).delete()  # clean up the last tests
-        db.session.commit()
+       # db.session.query(Account).delete()  # clean up the last tests
+    #    db.session.commit()
 
         self.client = app.test_client()
 
@@ -50,6 +51,67 @@ class TestAccountService(TestCase):
         """Runs once after each test case"""
         db.session.remove()
 
+    def test_get_account_list(self):
+        """It should Get a list of Accounts"""
+        self._create_accounts(5)
+        resp = self.client.get(BASE_URL)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        data = resp.get_json()
+        self.assertEqual(len(data), 5)
+
+    ######################################################################
+    # UPDATE AN EXISTING ACCOUNT
+    ######################################################################
+    @app.route("/accounts/<int:account_id>", methods=["PUT"])
+    def update_accounts(account_id):
+        """
+        Update an Account
+        This endpoint will update an Account based on the posted data
+        """
+        app.logger.info("Request to update an Account with id: %s", account_id)
+
+        account = Account.find(account_id)
+        if not account:
+            abort(status.HTTP_404_NOT_FOUND, f"Account with id [{account_id}] could not be found.")
+
+        account.deserialize(request.get_json())
+        account.update()
+
+        return account.serialize(), status.HTTP_200_OK
+ 
+        ######################################################################
+    # DELETE AN ACCOUNT
+    ######################################################################
+    @app.route("/accounts/<int:account_id>", methods=["DELETE"])
+    def delete_accounts(account_id):
+        """
+        Delete an Account
+        This endpoint will delete an Account based on the account_id that is requested
+        """
+        app.logger.info("Request to delete an Account with id: %s", account_id)
+
+        account = Account.find(account_id)
+        if account:
+            account.delete()
+
+        return "", status.HTTP_204_NO_CONTENT
+
+        ######################################################################
+    # LIST ALL ACCOUNTS
+    ######################################################################
+    @app.route("/accounts", methods=["GET"])
+    def list_accounts():
+        """
+        List all Accounts
+        This endpoint will list all Accounts
+        """
+        app.logger.info("Request to list Accounts")
+
+        accounts = Account.all()
+        account_list = [account.serialize() for account in accounts]
+
+        app.logger.info("Returning [%s] accounts", len(account_list))
+        return jsonify(account_list), status.HTTP_200_OK
     ######################################################################
     #  H E L P E R   M E T H O D S
     ######################################################################
